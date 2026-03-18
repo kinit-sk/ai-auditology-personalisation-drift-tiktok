@@ -8,9 +8,9 @@ import numpy as np
 import os
 import math
 
-path_results = r'path\to\data\dir'
+path_results = r'path\to\data'
 results_file = 'UMAP_data_32_agents_zenodo.csv'
-path_figures = r'path\to\figures\dir'
+path_figures = r'path\to\figures'
 
 # size of analysis time bin in minutes
 minute_interval = 30
@@ -589,9 +589,10 @@ for topic in unique_topics:
         g2.yaxis.label.set_size(13)
         
         # dropping data from analysis 
-        if ((topic == 'vaccines' ) or (topic == 'flatearth' )) and (stance == 'support'):
+        if ((topic == 'Vaccines' ) or (topic == 'Flatearth' )) and (stance == 'support'):
             
             agg_data_display = agg_data_display.drop(agg_data_display[agg_data_display.stance_ratio == -1.2].index)
+        
         
         g3 = sns.regplot(x="time_bin_id",y='stance_ratio',data=agg_data_display, fit_reg=True, color = 'red', marker="x", ax=g2.axes.twinx(),order=1, robust = True)
         g3.set(ylabel='Stance ratio')

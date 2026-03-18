@@ -8,9 +8,9 @@ import numpy as np
 import os
 import math
 
-path_results = r'path\to\data\dir'
+path_results = r'path\to\data'
 results_file = 'UMAP_data_US_politics_4_agents_zenodo.csv'
-path_figures = r'path\to\figures\dir'
+path_figures = r'path\to\figures'
 
 
 # size of analysis time bin in minutes
