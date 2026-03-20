@@ -7,22 +7,24 @@ import pandas as pd
 import numpy as np
 import os
 import math
+from scipy import stats
 
 path_results = r'path\to\data'
-results_file = 'UMAP_data_32_agents_zenodo.csv'
+results_file = 'data_32_agents_polarizing_plus_neutral_zenodo.csv'
 path_figures = r'path\to\figures'
+
 
 # size of analysis time bin in minutes
 minute_interval = 30
 
-# if not 'NA' exclude data points where time_id > data_trim_minutes
+# if not 'NA' exclude data points where time_id > data_trim_minutes in visualizations
 data_trim_minutes = 1000
 
         
 all_data = pd.read_csv(os.path.join(path_results,results_file))
 
 # overall statistics
-stats = {}
+basic_stats = {}
 
 len_run = len(all_data)
 num_watch = (all_data.video_action_watch == True).sum()
@@ -30,13 +32,13 @@ num_like = (all_data.video_action_like == True).sum()
 num_bookmark = (all_data.video_action_bookmark == True).sum()
 
 
-stats['len_run'] = len_run
-stats['num_watch'] = num_watch
-stats['num_like'] = num_like
-stats['num_bookmark'] = num_bookmark
-stats['percentage_watch'] = (num_watch/len_run)*100
-stats['percentage_like'] = (num_like/len_run)*100
-stats['percentage_bookmark'] = (num_bookmark/len_run)*100
+basic_stats['len_run'] = len_run
+basic_stats['num_watch'] = num_watch
+basic_stats['num_like'] = num_like
+basic_stats['num_bookmark'] = num_bookmark
+basic_stats['percentage_watch'] = (num_watch/len_run)*100
+basic_stats['percentage_like'] = (num_like/len_run)*100
+basic_stats['percentage_bookmark'] = (num_bookmark/len_run)*100
 
 # convert to datetime
 all_data['video_time_watch_loop_start'] = pd.to_datetime(all_data['video_time_watch_loop_start'],unit='s')
@@ -136,7 +138,7 @@ for topic in unique_topics:
         
         # cut culumns that we dont need
         agent_runs_concat = agent_runs_concat[['video_action_watch','video_time_duration','elapsed_total_bin','elapsed_total','day_id','predicted_topic_match','predicted_stance_match','predicted_topic']]
-        
+            
         agents_analysis_data[agent]['data'] = agent_runs_concat
         
         # aggregate data using created time bins
@@ -373,92 +375,7 @@ for agent_name,agent_data in agents_analysis_data.items():
 
 
 
-      
-      
-# RQ1 PLOTS
-
-# we fist need to add topic_watch_percentage to cooking_watch_percentage
-# this is needed so we get cumulative bar chart
-# cooking will allways be at the bottom!!!
-
-# RQ1.1 PLOTS
-# we should plot the RATIO BETWEEN FLATEARTH AND COOKING
-# scale +1, 0, -1
-# this plot will give us visualization of TOPIC DRIFT
-# if ratio -> +1 = more topic than cooking
-# if ratio == 0 = 50:50 balance between topic and cooking
-# if ratio -> -1 more cooking than topic
-
-# ratio formula:
-# (predicted_topic_count - predicted_topic_count_recipes)/(predicted_topic_count + predicted_topic_count_recipes)
-
-# data will be in agg_data_topic_sum[topic]['topic_ratio']
-
-
-# VERSION 1 : PERSONALIZATION DRIFT (USE ONLY ON ORIGINAL RUNS!!!!!)
-
-# topic_rename_dict = {'climate_change' : 'Climate change', 'donald_trump':'US Politics','vaccines':'Vaccines','flatearth':'Flatearth'}
-
-for topic in unique_topics:
-    
-    agg_data_topic_sum[topic]['topic_watch_percentage_cumulative'] = agg_data_topic_sum[topic]['cooking_watch_percentage'] + agg_data_topic_sum[topic]['topic_watch_percentage']
-    
-    plot_name = topic
-    file_name = topic + '_personalization_drift'
-    
-    
-    # trim data to length 1000 minutes
-    if type(data_trim_minutes) != str:
-        
-        agg_data_display = agg_data_topic_sum[topic].drop(agg_data_topic_sum[topic][agg_data_topic_sum[topic].time_bin_id > data_trim_minutes].index)
-        
-    else:
-        
-        agg_data_display = agg_data_topic_sum[topic]
-
-    g1 = sns.barplot(agg_data_display, x="time_bin_id", y="topic_watch_percentage_cumulative",color='royalblue',native_scale=True)
-    g1.set_xticklabels(g1.get_xticklabels(), rotation=40, ha="right")
-    plt.tight_layout()
-    g1.set_title(plot_name,fontsize=16)
-    g1.set(xlabel='Elapsed time in minutes', ylabel='Ratio of recommended videos (in %)')
-    g1.set(ylim=(0, 100))
-    g1.xaxis.label.set_size(13)
-    g1.yaxis.label.set_size(13)
-    
-    g2 = sns.barplot(agg_data_display, x="time_bin_id", y="cooking_watch_percentage",color='orange',native_scale=True)
-    g2.set_xticklabels(g2.get_xticklabels(), rotation=40, ha="right")
-    plt.tight_layout()
-    g2.set_title(plot_name,fontsize=16)
-    g2.set(xlabel='Elapsed time in minutes', ylabel='Ratio of recommended videos (in %)')
-    g2.set(ylim=(0, 100))
-    g2.xaxis.label.set_size(13)
-    g2.yaxis.label.set_size(13)
-    
-    g1.tick_params(axis='both', labelsize=13)
-    # g2.tick_params(axis='both', labelsize=13)
-    
-    g3 = sns.regplot(x="time_bin_id",y='topic_watch_percentage_cumulative',data=agg_data_display, fit_reg=True, color = 'red', marker="x", ax=g2,order=2, robust = False)
-    # g3.set(ylim=(-1, 1))
-    g3.yaxis.label.set_size(13)
-    g3.tick_params(axis='both', labelsize=13)
-    
-    g3.set(xlabel='Elapsed time in minutes', ylabel='Ratio of recommended videos (in %)')
-
-
-    # add legend
-    top_bar = mpatches.Patch(color='royalblue', label='Topic')
-    middle_bar = mpatches.Patch(color='orange', label='Cooking')
-    bottom_bar = mpatches.Patch(color='red', label='Preference-aligned drift')
-    plt.legend(handles=[top_bar, middle_bar, bottom_bar],fontsize=11)
-
-
-    fig = g3.get_figure()
-    fig.savefig(os.path.join(path_figures,file_name + '.png'),bbox_inches='tight')
-
-    plt.show()
-
-
-# VERSION 2 : TOPIC DRIFT (USE ON SUBSEQUENT RUNS)
+# RQ1 : POLARISATION-TOPIC DRIFT
 
 # rename topics
 # topic_rename_dict = {'climate_change' : 'Climate change', 'donald_trump':'US Politics','vaccines':'Vaccines','flatearth':'Flatearth'}
@@ -523,30 +440,11 @@ for topic in unique_topics:
     fig.savefig(os.path.join(path_figures,file_name + '.png'),bbox_inches='tight')
 
     plt.show()
-        
-        
-#RQ 2 plots in ABSOLUTE NUMBERS
+    
+    
 
-# RQ2.1 PLOTS
-# we should plot the RATIO BETWEEN SUPPORT AND OPPOSE
-# scale +1, 0, -1
-# this plot will give us visualization of POLARIZATION DRIFT
-# if ratio -> +1 = more support than oppose
-# if ratio == 0 = 50:50 balance between support and oppose
-# if ratio -> -1 more oppose than support
 
-# ratio formula:
-# (predicted_topic_count - predicted_topic_count_recipes)/(predicted_topic_count + predicted_topic_count_recipes)
-
-# data will be in agg_data_topic_sum[topic]['topic_ratio']
-
-# whoch topic-stances to drop (will be computed in next step):
-# vaccines-support; flatearth-support
-
-# which topic-stances to render without topic-ratio plot
-# flatearth-oppose
-
-# topic_rename_dict = {'climate_change' : 'Climate change', 'donald_trump':'US Politics','vaccines':'Vaccines','flatearth':'Flatearth'}
+# RQ2 : POLARISATION-STANCE DRIFT
 
 for topic in unique_topics:
     
@@ -626,12 +524,8 @@ for topic in unique_topics:
         plt.show()
         
         
-#RQ 2 plots (continued for topics with too little data for drift analysis )
+# RQ2 : POLARISATION-STANCE DRIFT (continued for topics with too little data for drift analysis )
 
-# which topic-stances to render without topic-ratio plot
-# flatearth-oppose; vaccines-oppose
-
-# topic_rename_dict = {'climate_change' : 'Climate change', 'donald_trump':'US Politics','vaccines':'Vaccines','flatearth':'Flatearth'}
 
 for topic in unique_topics:
     
@@ -709,14 +603,45 @@ for topic in unique_topics:
             fig.savefig(os.path.join(path_figures,file_name + '.png'))
         
             plt.show()
-        
-        
-        
-        
-# ANALYZE STATISTICS OF DATA
+            
 
-from scipy import stats
 
+# STATISTICS FOR RQ 1:
+# topic_watch_percentage vs cooking_watch_percentage
+
+# predicted_topic_count (use for RQ1 instead of topic_watch_percentage)
+# predicted_topic_count_recipes (use for RQ1 instead of cooking_watch_percentage)
+
+print('Difference between topic_watch_percentage and cooking_watch_percentage for topic donald_trump : ')
+data_topic = agg_data_topic_list['US Politics']['predicted_topic_count']
+data_cooking = agg_data_topic_list['US Politics']['predicted_topic_count_recipes']
+
+# stats.describe(data_topic)
+# stats.describe(data_cooking)
+
+print(stats.mannwhitneyu(data_topic, data_cooking))
+print('==============================================================')
+
+print('Difference between topic_watch_percentage and cooking_watch_percentage for topic flatearth : ')
+data_topic = agg_data_topic_list['Flatearth']['predicted_topic_count']
+data_cooking = agg_data_topic_list['Flatearth']['predicted_topic_count_recipes']
+print(stats.mannwhitneyu(data_topic, data_cooking))
+print('==============================================================')
+
+print('Difference between topic_watch_percentage and cooking_watch_percentage for topic vaccines : ')
+data_topic = agg_data_topic_list['Vaccines']['predicted_topic_count']
+data_cooking = agg_data_topic_list['Vaccines']['predicted_topic_count_recipes']
+print(stats.mannwhitneyu(data_topic, data_cooking))
+print('==============================================================')
+
+print('Difference between topic_watch_percentage and cooking_watch_percentage for topic climate_change : ')
+data_topic = agg_data_topic_list['Climate change']['predicted_topic_count']
+data_cooking = agg_data_topic_list['Climate change']['predicted_topic_count_recipes']
+print(stats.mannwhitneyu(data_topic, data_cooking))
+print('==============================================================')
+
+
+            
 # STATISTICS FOR RQ 2:
 
 data_oppose = agg_data_topic_stance_list['US Politics']['support']['predicted_stance_oppose_count']
@@ -727,9 +652,6 @@ stats.describe(data_oppose)
 stats.describe(data_support)
 
 stats.ttest_ind(data_oppose, data_support)
-
-# try mannwhitneyu test
-stats.mannwhitneyu(data_oppose, data_support)
 
 # we dont have the same variance so try equal_var=False
 print('Difference between support and oppose for topic donald_trump and stance SUPPORT: ')
@@ -777,42 +699,6 @@ data_oppose = agg_data_topic_stance_list['Climate change']['oppose']['predicted_
 data_support = agg_data_topic_stance_list['Climate change']['oppose']['predicted_stance_support_count']
 print(stats.mannwhitneyu(data_oppose, data_support))
 print('==============================================================')
-
-
-# STATISTICS FOR RQ 1:
-# topic_watch_percentage vs cooking_watch_percentage
-
-# predicted_topic_count (use for RQ1 instead of topic_watch_percentage)
-# predicted_topic_count_recipes (use for RQ1 instead of cooking_watch_percentage)
-
-print('Difference between topic_watch_percentage and cooking_watch_percentage for topic donald_trump : ')
-data_topic = agg_data_topic_list['US Politics']['predicted_topic_count']
-data_cooking = agg_data_topic_list['US Politics']['predicted_topic_count_recipes']
-
-# stats.describe(data_topic)
-# stats.describe(data_cooking)
-
-print(stats.mannwhitneyu(data_topic, data_cooking))
-print('==============================================================')
-
-print('Difference between topic_watch_percentage and cooking_watch_percentage for topic flatearth : ')
-data_topic = agg_data_topic_list['Flatearth']['predicted_topic_count']
-data_cooking = agg_data_topic_list['Flatearth']['predicted_topic_count_recipes']
-print(stats.mannwhitneyu(data_topic, data_cooking))
-print('==============================================================')
-
-print('Difference between topic_watch_percentage and cooking_watch_percentage for topic vaccines : ')
-data_topic = agg_data_topic_list['Vaccines']['predicted_topic_count']
-data_cooking = agg_data_topic_list['Vaccines']['predicted_topic_count_recipes']
-print(stats.mannwhitneyu(data_topic, data_cooking))
-print('==============================================================')
-
-print('Difference between topic_watch_percentage and cooking_watch_percentage for topic climate_change : ')
-data_topic = agg_data_topic_list['Climate change']['predicted_topic_count']
-data_cooking = agg_data_topic_list['Climate change']['predicted_topic_count_recipes']
-print(stats.mannwhitneyu(data_topic, data_cooking))
-print('==============================================================')
-
 
 
 
@@ -999,3 +885,6 @@ data_oppose = agg_data_topic_stance_list['Climate change']['support']['predicted
 data_support = agg_data_topic_stance_list['Climate change']['oppose']['predicted_stance_oppose_count']
 print(stats.mannwhitneyu(data_oppose, data_support))
 print('==============================================================')
+            
+            
+

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+
 import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
@@ -7,22 +8,23 @@ import pandas as pd
 import numpy as np
 import os
 import math
+from scipy import stats
 
 path_results = r'path\to\data'
-results_file = 'UMAP_data_US_politics_4_agents_zenodo.csv'
+results_file = 'data_32_agents_polarizing_plus_neutral_zenodo.csv'
 path_figures = r'path\to\figures'
-
 
 # size of analysis time bin in minutes
 minute_interval = 30
 
+# if not 'NA' exclude data points where time_id > data_trim_minutes in visualizations
 data_trim_minutes = 1000
 
         
 all_data = pd.read_csv(os.path.join(path_results,results_file))
 
 # overall statistics
-stats = {}
+basic_stats = {}
 
 len_run = len(all_data)
 num_watch = (all_data.video_action_watch == True).sum()
@@ -30,13 +32,13 @@ num_like = (all_data.video_action_like == True).sum()
 num_bookmark = (all_data.video_action_bookmark == True).sum()
 
 
-stats['len_run'] = len_run
-stats['num_watch'] = num_watch
-stats['num_like'] = num_like
-stats['num_bookmark'] = num_bookmark
-stats['percentage_watch'] = (num_watch/len_run)*100
-stats['percentage_like'] = (num_like/len_run)*100
-stats['percentage_bookmark'] = (num_bookmark/len_run)*100
+basic_stats['len_run'] = len_run
+basic_stats['num_watch'] = num_watch
+basic_stats['num_like'] = num_like
+basic_stats['num_bookmark'] = num_bookmark
+basic_stats['percentage_watch'] = (num_watch/len_run)*100
+basic_stats['percentage_like'] = (num_like/len_run)*100
+basic_stats['percentage_bookmark'] = (num_bookmark/len_run)*100
 
 # convert to datetime
 all_data['video_time_watch_loop_start'] = pd.to_datetime(all_data['video_time_watch_loop_start'],unit='s')
@@ -537,8 +539,6 @@ for topic in unique_topics:
         
 
 # STATISTICS FOR RQ 2.1:
-    
-from scipy import stats
     
 data_oppose = agg_data_topic_stance_list['US Politics']['indifferent']['predicted_stance_oppose_count']
 data_support = agg_data_topic_stance_list['US Politics']['indifferent']['predicted_stance_support_count']
